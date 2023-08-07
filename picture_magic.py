@@ -42,10 +42,10 @@ class PictureMagic(object):
                     7: 'safely remove renaming-suffix from previous safe moving (recursive)',
                     }
 
-        dict_to_str = lambda x: ','.join(" %s:%s" % (str(k), str(v)) for (k, v) in x.items()) if isinstance(x,dict) else x
-        parser = argparse.ArgumentParser(description='Organize pictures from iOS')
+        dict_to_str = lambda x: '\n'.join("  %s:%s" % (str(k), str(v)) for (k, v) in x.items()) if isinstance(x,dict) else x
+        parser = argparse.ArgumentParser(description='Organize pictures from iOS', formatter_class=argparse.RawTextHelpFormatter)
         parser.add_argument('--mode', dest='mode', required=True, type=int, choices=mode_map.keys(),
-                           help=f'mode of operation. {dict_to_str(mode_map)}')
+                           help=f'mode of operation.\n{dict_to_str(mode_map)}')
         parser.add_argument('--path', dest='path', required=True, type=str,
                            help='path to a folder.')
         parser.add_argument('--dry_run', dest='dry_run', required=False, action='store_true',
