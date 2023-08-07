@@ -43,14 +43,14 @@ class PictureMagic(object):
                     }
 
         dict_to_str = lambda x: ','.join(" %s:%s" % (str(k), str(v)) for (k, v) in x.items()) if isinstance(x,dict) else x
-        parser = argparse.ArgumentParser(description='Organize my pictures')
+        parser = argparse.ArgumentParser(description='Organize pictures from iOS')
         parser.add_argument('--mode', dest='mode', required=True, type=int, choices=mode_map.keys(),
-                           help='mode of operation. {}'.format(dict_to_str(mode_map)))
+                           help=f'mode of operation. {dict_to_str(mode_map)}')
         parser.add_argument('--path', dest='path', required=True, type=str,
-                           help='path to a folder')
+                           help='path to a folder.')
         parser.add_argument('--dry_run', dest='dry_run', required=False, action='store_true',
-                           help='If true, also the pertaining modes (marked with *) will not make any changes and '
-                                'instead only output the planned operations as text.')
+                           help='If true, also the non-READ-ONLY modes will not make any changes and '
+                                'only output the planned operations.')
         parser.add_argument('--verbose', dest='verbose', required=False, action='store_true',
                            help='If true, print verbose log information.')
 
