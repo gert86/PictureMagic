@@ -7,6 +7,7 @@ import collections
 
 from glob import glob
 from pathlib import Path
+import time
 from typing import Collection
 
 from exif import Image
@@ -34,7 +35,7 @@ class PictureMagic(object):
     def main(self):
         mode_map = {0: 'show folder statistics (recursive, read-only)',
                     1: 'show capture timestamps grouped by year (recursive, read-only)',
-                    2: 'find duplicate file names (recursive, read-only)',
+                    2: 'find duplicate files and remove them interactively (recursive)',
                     3: 'move to type subfolders',
                     4: 'move back from type subfolders (not possible if names clash)',
                     5: 'move to monthly subfolders',
@@ -65,7 +66,7 @@ class PictureMagic(object):
         elif args.mode == 1:
             self.showCaptureYears(args)
         elif args.mode == 2:
-            self.findDuplicates(args, True)            
+            self.findDuplicates(args=args, doConsiderSize=True, doLogging=True)            
         elif args.mode == 3:
             self.moveToSubfolders(args)
         elif args.mode == 4:
@@ -95,7 +96,8 @@ class PictureMagic(object):
     def showCaptureYears(self, args):               
         folder_path = Path(args.path.rstrip(os.sep))
         collection = collections.defaultdict(list)
-        for file_path in Path(folder_path).glob('**/*'):
+        files = [path for path in folder_path.glob("**/*") if path.is_file()]
+        for file_path in files:
             dt = None
             lower_name = str(file_path).lower()
             if lower_name.endswith("jpg") or lower_name.endswith("jpeg") or lower_name.endswith("png"):
@@ -106,25 +108,57 @@ class PictureMagic(object):
             key = str(dt[0:4]) if (dt is not None and len(dt)>7) else 'Unknown'
             collection[key].append(file_path)
 
-        for year,files in collection.items():
-            print(f"{year}: {len(files)} files")        
+        num_overall = 0
+        sorted_keys = sorted(collection.keys())
+        for year in sorted_keys:
+            files = collection[year]
+            num_overall += len(files)
+            print(f"{year}: {len(files)} files")
+        print(f"-----------------------------")
+        print(f"Overall: {num_overall} files")                 
 
 
     ###############################################################################################################
-    # Mode 2 - find duplicates (READ-ONLY)
+    # Mode 2 - find duplicates and remove them interactively
     # Also returns duplicates in the form {filename: num_occurrences}
-    def findDuplicates(self, args, doPrint): 
+    def findDuplicates(self, args, doConsiderSize, doLogging): 
         folder_path = Path(args.path.rstrip(os.sep))
         dups = {}
-        files = [os.path.basename(path) for path in folder_path.glob("**/*") if path.is_file()]
+        files = [(os.path.basename(path), str(os.path.getsize(path)) if doConsiderSize else '') for path in folder_path.glob("**/*") if path.is_file()]
         data = collections.Counter(files)
         for key, val in data.items():
             if (val > 1):
                 dups[key] = val
-                if doPrint:
+                if doLogging:
                     print(f'Duplicate file name: {key} -> occurs {val} times')
-        if doPrint:
-            print(f'Found {len(dups)} duplicates')                       
+        if doLogging:
+            print(f'Found {len(dups)} duplicates')
+        
+        if doConsiderSize and not args.dry_run: 
+            count = 0
+            for key, num in dups.items():
+                count += 1
+                dup_files = [path for path in folder_path.glob("**/*"+key[0]) if str(os.path.getsize(path))==key[1]]
+                if len(dup_files) != num:
+                    raise Exception(f"{len(dup_files)} vs {num}")
+                
+                msg = f"\n\n{count}/{len(dups)}: File {key[0]} exists {num} times."
+                for dcount,dup in enumerate(dup_files):
+                    msg += f"\n{dcount}: {dup}"
+                msg += "\n\n(S)kip, (A)bort, (0) Delete 0, (1) Delete 1, ...\n"
+                answer = "TBD"
+                while answer.lower() not in ["s", "a"] + [str(n) for n in list(range(num))]:
+                    answer = input(msg)
+                if answer=="s":
+                    continue
+                elif answer=="a":
+                    break
+                else:
+                    delIndex = int(answer)
+                    print(f"Deleting {delIndex}: {dup_files[delIndex]}")
+                    time.sleep(1)
+                    os.remove(dup_files[delIndex])
+
         return dups
 
 
@@ -193,7 +227,7 @@ class PictureMagic(object):
             return
         
         # assure that moving won't cause name clashes
-        filename_duplicates = self.findDuplicates(args, False)
+        filename_duplicates = self.findDuplicates(args=args, doConsiderSize=False, doLogging=False)
         if len(filename_duplicates) > 0:
             print("Cannot move back to parent folder, because subfolders contain files with equal names. Use mode 6 to move manually.")
             for key, val in filename_duplicates.items():
