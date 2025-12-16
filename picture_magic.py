@@ -324,8 +324,11 @@ class PictureMagic(object):
                 renameOk += 1
                 if not args.dry_run:
                     shutil.move(f, renamed_f) 
+                    print(f"RENAMED {f} to {renamed_f}\n") 
+                else:
+                    print(f"COULD rename {f} to {renamed_f}\n") 
             else:
-                print(f"Cannot rename {f} to {renamed_f} because this filename exists already\n")
+                print(f"CANNOT rename {f} to {renamed_f} because this filename exists already\n")
         canWill = "can be" if args.dry_run else "were"
         print(f"Detected {len(files)} files with suffix __XXX -> {renameOk} " + canWill + " renamed safely")
 
